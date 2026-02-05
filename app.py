@@ -33,7 +33,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown('<div class="header-mini"><h2>🏪 KASIR JAYA DIGITAL</h2></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-mini"><h2>🏪 WK AHAS SMP YABAKII</h2></div>', unsafe_allow_html=True)
 
 # 4. NAVIGASI
 menu = st.sidebar.radio("MENU:", ["🛒 Kasir", "📦 Produk", "📊 Laporan"])
@@ -84,7 +84,7 @@ if menu == "🛒 Kasir":
                             # AREA STRUK
                             st.markdown(f"""
                             <div class="struk-box" id="struk">
-                                <center><b>KASIR JAYA DIGITAL</b><br>{datetime.now().strftime('%d/%m/%Y %H:%M')}</center>
+                                <center><b>WK AHAS SMP YABAKII</b><br>{datetime.now().strftime('%d/%m/%Y %H:%M')}</center>
                                 <hr>
                                 {pilihan}<br>{qty} x {harga_satuan:,.0f} = {total_tagihan:,.0f}<br>
                                 <hr>
