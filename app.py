@@ -1,87 +1,88 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime
 
-# Set halaman agar lebih lebar dan modern
-st.set_page_config(page_title="App Kasir Keuangan", layout="wide")
+# Set page configuration
+st.set_page_config(
+    page_title="WK AHAS Dashboard",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Gaya CSS Kustom untuk tampilan kartu
+# Custom CSS for modern theme
 st.markdown("""
-    <style>
-    .stMetric {
-        background-color: #f0f2f6;
+<style>
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 20px;
-        border-radius: 15px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    </style>
-    """, unsafe_allow_html=True)
+    .metric-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    .income { border-left: 5px solid #28a745; }
+    .expense { border-left: 5px solid #dc3545; }
+    .balance { border-left: 5px solid #007bff; }
+    .separator {
+        height: 2px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        margin: 20px 0;
+    }
+    .sidebar .sidebar-content {
+        background: #f8f9fa;
+    }
+    .stButton>button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Inisialisasi data agar tidak hilang
-if 'data' not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=['Tipe', 'Kategori', 'Jumlah', 'Tanggal'])
+# Custom Header
+def custom_header():
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        st.image("https://via.placeholder.com/100x100?text=Logo", width=80)  # Placeholder logo
+    with col2:
+        st.markdown("<h1 style='text-align: center; color: white;'>Kasir Jaya Digital</h1>", unsafe_allow_html=True)
+    with col3:
+        st.write("")  # Spacer
 
-# --- NAVIGASI HALAMAN ---
-st.sidebar.title("🏧 MENU KASIR")
-menu = st.sidebar.radio("Pilih Halaman:", ["Input Transaksi (Kasir)", "Laporan & Grafik"])
+# Sample data (replace with your actual data loading)
+@st.cache_data
+def load_data():
+    # Dummy data for demonstration
+    data = {
+        'Date': pd.date_range(start='2023-01-01', periods=30, freq='D'),
+        'Income': [1000 + i*10 for i in range(30)],
+        'Expense': [800 + i*5 for i in range(30)],
+        'Balance': [200 + i*5 for i in range(30)]
+    }
+    df = pd.DataFrame(data)
+    return df
 
-if menu == "Input Transaksi (Kasir)":
-    st.title("🛒 Input Transaksi")
-    st.info("Gunakan halaman ini untuk memasukkan data transaksi harian.")
-    
-    with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            tipe = st.selectbox("Jenis Transaksi", ["Pemasukan", "Pengeluaran"])
-            kategori = st.text_input("Nama Barang / Kategori", placeholder="Contoh: Jual Kopi / Bayar Listrik")
-        with col2:
-            jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000)
-            tanggal = st.date_input("Tanggal", value=datetime.today())
-        
-        if st.button("🔴 SIMPAN TRANSAKSI", use_container_width=True):
-            if kategori and jumlah > 0:
-                new_data = pd.DataFrame({'Tipe': [tipe], 'Kategori': [kategori], 'Jumlah': [jumlah], 'Tanggal': [tanggal]})
-                st.session_state.data = pd.concat([st.session_state.data, new_data], ignore_index=True)
-                st.success("✅ Berhasil disimpan!")
-            else:
-                st.warning("Mohon isi nama kategori dan jumlah uang!")
+df = load_data()
 
-elif menu == "Laporan & Grafik":
-    st.title("📊 Laporan Keuangan")
-    
-    # Ringkasan Angka
-    income = st.session_state.data[st.session_state.data['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    expense = st.session_state.data[st.session_state.data['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    saldo = income - expense
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Sisa Saldo", f"Rp {saldo:,.0f}")
-    c2.metric("Total Masuk", f"Rp {income:,.0f}", delta_color="normal")
-    c3.metric("Total Keluar", f"Rp {expense:,.0f}", delta="-")
-    
-    st.divider()
-    
-    # Bagian Visualisasi
-    col_chart1, col_chart2 = st.columns(2)
-    
-    with col_chart1:
-        st.subheader("🥧 Distribusi Pengeluaran")
-        df_exp = st.session_state.data[st.session_state.data['Tipe'] == 'Pengeluaran']
-        if not df_exp.empty:
-            fig = px.pie(df_exp, values='Jumlah', names='Kategori', hole=0.5, color_discrete_sequence=px.colors.sequential.RdBu)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.write("Belum ada data pengeluaran.")
-
-    with col_chart2:
-        st.subheader("📑 Tabel Riwayat Transaksi")
-        st.dataframe(st.session_state.data, use_container_width=True)
-
-    # Tombol Ekspor
-    st.download_button(
-        label="📥 Download Data ke Excel",
-        data=st.session_state.data.to_csv(index=False),
-        file_name="laporan_kasir.csv",
-        mime="text/csv"
-    )
+#
