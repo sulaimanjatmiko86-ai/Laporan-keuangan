@@ -14,17 +14,15 @@ if 'master_barang' not in st.session_state:
         "Air Mineral": [5000, 100]
     }
 
-# State untuk hitung bayar
+# State pembayaran
 if 'jml_bayar' not in st.session_state:
     st.session_state.jml_bayar = 0
 
-# 3. FUNGSI KIRIM KE GOOGLE SHEETS
+# 3. FUNGSI KIRIM KE GOOGLE SHEETS (DENGAN ID ENTRY ASLI)
 def simpan_ke_google(tipe, kategori, jumlah, tanggal):
-    # Ini adalah link formResponse milikmu
     url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse"
     
-    # Ini adalah ID kolom (entry) hasil bedah form kamu
-    # Jika data tidak masuk, kemungkinan ID entry ini perlu disesuaikan lagi
+    # ID Entry ini sudah disesuaikan dengan Form kamu
     payload = {
         "entry.1444153920": tipe,     # Kolom Tipe
         "entry.2065873155": kategori, # Kolom Katagori
@@ -38,11 +36,11 @@ def simpan_ke_google(tipe, kategori, jumlah, tanggal):
     except:
         return False
 
-# 4. TAMPILAN HEADER RINGKAS
+# 4. TAMPILAN GAYA (CSS)
 st.markdown("""
     <style>
     .header-mini { padding: 10px; background: #1e3c72; color: white; border-radius: 8px; margin-bottom: 15px; text-align: center;}
-    .struk-box { background: white; padding: 15px; border: 1px dashed black; font-family: monospace; color: black; }
+    .struk-box { background: white; padding: 15px; border: 1px dashed black; font-family: monospace; color: black; line-height: 1.2; }
     </style>
     <div class="header-mini"><h2>🏪 KASIR JAYA DIGITAL</h2></div>
     """, unsafe_allow_html=True)
@@ -64,14 +62,13 @@ if menu == "🛒 Kasir":
                 stok_ada = st.session_state.master_barang[pilihan][1]
                 total_tagihan = harga_sat * qty
                 
-                st.write(f"### Total: Rp {total_tagihan:,.0f}")
-                st.divider()
+                st.write(f"### Tagihan: Rp {total_tagihan:,.0f}")
                 
-                # Fitur Pembayaran
+                # Pembayaran
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("💵 UANG PAS"): st.session_state.jml_bayar = total_tagihan
-                    pecahan = st.selectbox("Pilih Pecahan:", [0, 20000, 50000, 100000])
+                    pecahan = st.selectbox("Uang Pecahan:", [0, 10000, 20000, 50000, 100000])
                     if pecahan > 0: st.session_state.jml_bayar = pecahan
                 with c2:
                     manual = st.number_input("Input Manual:", min_value=0, step=500)
@@ -79,11 +76,11 @@ if menu == "🛒 Kasir":
                 
                 st.write(f"Diterima: **Rp {st.session_state.jml_bayar:,.0f}**")
                 
-                if st.session_state.jml_bayar >= total_tagihan:
+                if st.session_state.jml_bayar >= total_tagihan and st.session_state.jml_bayar > 0:
                     kembali = st.session_state.jml_bayar - total_tagihan
-                    st.info(f"Kembalian: Rp {kembali:,.0f}")
+                    st.success(f"Kembalian: Rp {kembali:,.0f}")
                     
-                    if st.button("✅ SELESAIKAN & SIMPAN CLOUD", use_container_width=True):
+                    if st.button("✅ PROSES & SIMPAN CLOUD", use_container_width=True):
                         if qty <= stok_ada:
                             tgl_skrg = datetime.today().strftime('%Y-%m-%d')
                             # KIRIM KE GOOGLE SHEETS
@@ -91,9 +88,9 @@ if menu == "🛒 Kasir":
                             
                             if sukses:
                                 st.session_state.master_barang[pilihan][1] -= qty
-                                st.success("✅ Berhasil Simpan ke Google Sheets!")
+                                st.success("✅ Tersimpan di Google Sheets!")
                                 st.balloons()
-                                # Cetak Struk
+                                # Tampilkan Struk
                                 st.markdown(f"""
                                 <div class="struk-box">
                                     <center><b>KASIR JAYA DIGITAL</b><br>{tgl_skrg}</center><hr>
@@ -106,21 +103,21 @@ if menu == "🛒 Kasir":
                                 """, unsafe_allow_html=True)
                                 st.session_state.jml_bayar = 0
                             else:
-                                st.error("❌ Gagal terhubung ke Cloud. Periksa internet!")
+                                st.error("❌ Gagal kirim ke Cloud. Cek internet!")
                         else:
                             st.error("Stok tidak cukup!")
 
     with col2:
-        if st.button("🔄 Reset Form"):
+        if st.button("🔄 Reset Transaksi"):
             st.session_state.jml_bayar = 0
             st.rerun()
 
 elif menu == "📦 Stok Barang":
-    st.subheader("Manajemen Stok")
+    st.subheader("Manajemen Produk")
     for b, d in st.session_state.master_barang.items():
         st.write(f"**{b}** - Stok: {d[1]} | Harga: Rp {d[0]:,.0f}")
 
 else:
-    st.subheader("📊 Laporan")
-    st.write("Silakan cek file Google Sheets kamu untuk melihat riwayat lengkap secara permanen.")
-    st.link_button("📂 Buka Google Sheets", "https://docs.google.com/spreadsheets/d/1X_Ww-o7n9p3g9Wb8fU6E7W-Y4F9p8G7Y-U1B2C3D4E5/edit")
+    st.subheader("📊 Laporan Keuangan")
+    st.info("Catatan: Data riwayat tersimpan secara permanen di file Google Sheets kamu.")
+    st.write("Silakan buka file **'Database kasir'** di Google Drive kamu untuk melihat detailnya.")
