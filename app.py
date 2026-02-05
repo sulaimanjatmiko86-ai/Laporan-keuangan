@@ -1,175 +1,143 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 
-# Set page configuration
-st.set_page_config(
-    page_title="Kasir Jaya Digital Dashboard",
-    page_icon="💰",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. KONFIGURASI HALAMAN
+st.set_page_config(page_title="Kasir Jaya Digital", layout="wide", page_icon="🏪")
 
-# Custom CSS for modern theme
+# 2. DATABASE BARANG (Kamu bisa edit nama & harga di sini)
+DAFTAR_BARANG = {
+    "--- Pilih Barang ---": 0,
+    "Kopi Espresso": 15000,
+    "Roti Bakar": 20000,
+    "Air Mineral": 5000,
+    "Teh Manis": 8000,
+    "Pulsa 10rb": 12500,
+    "Indomie Tante": 12000
+}
+
+# 3. INISIALISASI DATA (Agar data tersimpan selama aplikasi jalan)
+if 'data' not in st.session_state:
+    st.session_state.data = pd.DataFrame(columns=['Tipe', 'Kategori', 'Jumlah', 'Tanggal'])
+
+# 4. CSS KUSTOM UNTUK TAMPILAN MODERN (INFOGRAFIS)
 st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
+    <style>
+    .main { background-color: #f8f9fa; }
+    .stMetric {
+        background-color: #ffffff;
+        padding: 15px;
         border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-left: 5px solid #1E88E5;
     }
-    .metric-card {
-        background: white;
-        border-radius: 10px;
+    .header-style {
+        text-align: center;
         padding: 20px;
-        margin: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        text-align: center;
-        transition: transform 0.2s;
-    }
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    .income { border-left: 5px solid #28a745; }
-    .expense { border-left: 5px solid #dc3545; }
-    .balance { border-left: 5px solid #007bff; }
-    .separator {
-        height: 2px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        margin: 20px 0;
-    }
-    .sidebar .sidebar-content {
-        background: #f8f9fa;
-    }
-    .stButton>button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #1E88E5;
         color: white;
-        border: none;
-        border-radius: 5px;
-        padding: 10px 20px;
+        border-radius: 15px;
+        margin-bottom: 25px;
     }
-    .stButton>button:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
-# Custom Header
-def custom_header():
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        st.image("https://via.placeholder.com/100x100?text=Logo", width=80)  # Placeholder logo
-    with col2:
-        st.markdown("<h1 style='text-align: center; color: white;'>Kasir Jaya Digital</h1>", unsafe_allow_html=True)
-    with col3:
-        st.write("")  # Spacer
+# 5. HEADER (LOGO & NAMA TOKO)
+st.markdown("""
+    <div class="header-style">
+        <h1>🏪 KASIR JAYA DIGITAL</h1>
+        <p>Solusi Cerdas Pengelolaan Keuangan Toko Anda</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Sample data (replace with your actual data loading)
-@st.cache_data
-def load_data():
-    # Dummy data for demonstration
-    data = {
-        'Date': pd.date_range(start='2023-01-01', periods=30, freq='D'),
-        'Income': [1000 + i*10 for i in range(30)],
-        'Expense': [800 + i*5 for i in range(30)],
-        'Balance': [200 + i*5 for i in range(30)]
-    }
-    df = pd.DataFrame(data)
-    return df
+# 6. NAVIGASI SIDEBAR
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100) # Contoh Logo
+    st.title("MENU UTAMA")
+    menu = st.radio("Pilih Halaman:", ["🛒 Mesin Kasir", "📊 Laporan Infografis"])
+    st.divider()
+    st.write("Logged in as: **Admin Toko**")
 
-df = load_data()
+# --- HALAMAN 1: MESIN KASIR ---
+if menu == "🛒 Mesin Kasir":
+    st.subheader("📝 Catat Transaksi Baru")
+    
+    tab1, tab2 = st.tabs(["✨ Input Barang Otomatis", "✍️ Input Manual"])
+    
+    with tab1:
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            barang_sel = st.selectbox("Cari Produk:", list(DAFTAR_BARANG.keys()))
+            qty = st.number_input("Jumlah (Qty):", min_value=1, value=1)
+        with c2:
+            harga_satuan = DAFTAR_BARANG[barang_sel]
+            total_bayar = harga_satuan * qty
+            st.markdown(f"### Total: \n # Rp {total_bayar:,.0f}")
+            
+        if st.button("➕ Tambahkan ke Keranjang", use_container_width=True):
+            if barang_sel != "--- Pilih Barang ---":
+                new_row = pd.DataFrame({
+                    'Tipe': ['Pemasukan'], 
+                    'Kategori': [barang_sel], 
+                    'Jumlah': [total_bayar], 
+                    'Tanggal': [datetime.today().date()]
+                })
+                st.session_state.data = pd.concat([st.session_state.data, new_row], ignore_index=True)
+                st.success(f"Berhasil! {barang_sel} ditambahkan.")
+            else:
+                st.error("Silakan pilih barang terlebih dahulu!")
 
-# Sidebar navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Input", "Reports"])
+    with tab2:
+        with st.form("manual_form"):
+            col_m1, col_m2 = st.columns(2)
+            tipe_m = col_m1.selectbox("Jenis:", ["Pemasukan", "Pengeluaran"])
+            tgl_m = col_m1.date_input("Tanggal:", value=datetime.today())
+            nama_m = col_m2.text_input("Keterangan:", placeholder="Contoh: Bayar Listrik")
+            jumlah_m = col_m2.number_input("Nominal (Rp):", min_value=0)
+            
+            submit_m = st.form_submit_button("💾 Simpan Transaksi Manual")
+            if submit_m:
+                if nama_m and jumlah_m > 0:
+                    new_row = pd.DataFrame({
+                        'Tipe': [tipe_m], 'Kategori': [nama_m], 
+                        'Jumlah': [jumlah_m], 'Tanggal': [tgl_m]
+                    })
+                    st.session_state.data = pd.concat([st.session_state.data, new_row], ignore_index=True)
+                    st.success("Transaksi manual berhasil disimpan!")
 
-# Main content
-if page == "Input":
-    st.markdown('<div class="main-header">', unsafe_allow_html=True)
-    custom_header()
-    st.markdown('</div>', unsafe_allow_html=True)
+# --- HALAMAN 2: LAPORAN INFOGRAFIS ---
+else:
+    st.subheader("📈 Dashboard Laporan Keuangan")
     
-    st.header("Input Data")
-    st.markdown('<div class="separator"></div>', unsafe_allow_html=True)
+    # Hitung Data
+    total_masuk = st.session_state.data[st.session_state.data['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+    total_keluar = st.session_state.data[st.session_state.data['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+    saldo_akhir = total_masuk - total_keluar
     
-    # Input form
-    with st.form("input_form"):
-        date = st.date_input("Date", datetime.today())
-        income = st.number_input("Income", min_value=0.0, step=0.01)
-        expense = st.number_input("Expense", min_value=0.0, step=0.01)
-        submitted = st.form_submit_button("Submit")
-        if submitted:
-            st.success("Data submitted successfully!")
-            # Add logic to save data here
+    # Baris Info Grafis (Metric Cards)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("💰 Saldo Kas", f"Rp {saldo_akhir:,.0f}")
+    m2.metric("📈 Total Omzet", f"Rp {total_masuk:,.0f}")
+    m3.metric("📉 Pengeluaran", f"Rp {total_keluar:,.0f}")
+    
+    st.divider()
+    
+    col_chart1, col_chart2 = st.columns([1, 1])
+    
+    with col_chart1:
+        st.write("### 🥧 Komposisi Keuangan")
+        if not st.session_state.data.empty:
+            fig_pie = px.pie(st.session_state.data, values='Jumlah', names='Tipe', 
+                           hole=0.5, color_discrete_map={'Pemasukan':'#1E88E5', 'Pengeluaran':'#E53935'})
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("Belum ada data.")
 
-elif page == "Reports":
-    st.markdown('<div class="main-header">', unsafe_allow_html=True)
-    custom_header()
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.header("Financial Reports")
-    st.markdown('<div class="separator"></div>', unsafe_allow_html=True)
-    
-    # Modern Metrics
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="metric-card balance">', unsafe_allow_html=True)
-        st.metric("Saldo (Balance)", f"Rp {df['Balance'].iloc[-1]:,.0f}", delta=f"{df['Balance'].iloc[-1] - df['Balance'].iloc[-2]:,.0f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-card income">', unsafe_allow_html=True)
-        st.metric("Income", f"Rp {df['Income'].sum():,.0f}", delta=f"{df['Income'].iloc[-1]:,.0f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-card expense">', unsafe_allow_html=True)
-        st.metric("Expense", f"Rp {df['Expense'].sum():,.0f}", delta=f"{df['Expense'].iloc[-1]:,.0f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="separator"></div>', unsafe_allow_html=True)
-    
-    # Enhanced Charts
-    st.subheader("Income and Expense Over Time")
-    fig1 = px.line(df, x='Date', y=['Income', 'Expense'], 
-                   color_discrete_sequence=px.colors.sequential.Sunset,
-                   template="plotly_white")
-    fig1.update_layout(
-        title="Income vs Expense Trend",
-        xaxis_title="Date",
-        yaxis_title="Amount (Rp)",
-        responsive=True
-    )
-    st.plotly_chart(fig1, use_container_width=True)
-    
-    st.subheader("Balance Trend")
-    fig2 = px.area(df, x='Date', y='Balance', 
-                   color_discrete_sequence=px.colors.sequential.Plasma,
-                   template="plotly_white")
-    fig2.update_layout(
-        title="Balance Over Time",
-        xaxis_title="Date",
-        yaxis_title="Balance (Rp)",
-        responsive=True
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    st.subheader("Monthly Summary")
-    df['Month'] = df['Date'].dt.to_period('M')
-    monthly = df.groupby('Month').agg({'Income': 'sum', 'Expense': 'sum', 'Balance': 'last'}).reset_index()
-    fig3 = go.Figure()
-    fig3.add_trace(go.Bar(x=monthly['Month'].astype(str), y=monthly['Income'], name='Income', marker_color='green'))
-    fig3.add_trace(go.Bar(x=monthly['Month'].astype(str), y=monthly['Expense'], name='Expense', marker_color='red'))
-    fig3.update_layout(
-        title="Monthly Income and Expense",
-        xaxis_title="Month",
-        yaxis_title="Amount (Rp)",
-        barmode='group',
-        template="plotly_white",
-        responsive=True
-    )
-    st.plotly_chart(fig3, use_container_width=True)
+    with col_chart2:
+        st.write("### 📋 Riwayat Transaksi Terakhir")
+        st.dataframe(st.session_state.data.sort_values(by='Tanggal', ascending=False), use_container_width=True)
+
+    # Tombol Download
+    csv = st.session_state.data.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Download Laporan Lengkap (CSV)", data=csv, file_name="laporan_kasir.csv", mime="text/csv")
