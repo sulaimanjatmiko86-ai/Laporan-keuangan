@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Set page configuration
 st.set_page_config(
-    page_title="WK AHAS Dashboard",
+    page_title="ahas Dashboard",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
