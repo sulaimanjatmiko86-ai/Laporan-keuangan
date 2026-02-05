@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="Kasir Jaya", layout="wide", page_icon="🏪")
+st.set_page_config(page_title="WK AHAS SMP YABAKII 1", layout="wide", page_icon="🏪")
 
-# 2. INISIALISASI DATABASE
+# 2. DATABASE BARANG
 if 'master_barang' not in st.session_state:
     st.session_state.master_barang = {
         "Kopi Espresso": [15000, 50],
@@ -17,49 +16,33 @@ if 'master_barang' not in st.session_state:
 if 'data' not in st.session_state:
     st.session_state.data = pd.DataFrame(columns=['Tipe', 'Kategori', 'Jumlah', 'Tanggal'])
 
-# 3. GAYA DESAIN (JUDUL LEBIH KECIL & RINGKAS)
+# State untuk menampung jumlah bayar agar tombol Uang Pas bekerja
+if 'jml_bayar' not in st.session_state:
+    st.session_state.jml_bayar = 0
+
+# 3. GAYA DESAIN
 st.markdown("""
     <style>
-    .header-mini {
-        text-align: left;
-        padding: 10px;
-        background: #1e3c72;
-        color: white;
-        border-radius: 8px;
-        margin-bottom: 15px;
-    }
+    .header-mini { padding: 10px; background: #1e3c72; color: white; border-radius: 8px; margin-bottom: 15px; }
     .header-mini h2 { margin: 0; font-size: 20px; }
-    .header-mini p { margin: 0; font-size: 12px; opacity: 0.8; }
-    .bayar-box {
-        background-color: #f0f2f6;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 5px solid #1E88E5;
-        margin-top: 10px;
+    .struk-box { 
+        background-color: #fff; padding: 15px; border: 1px dashed #000; 
+        font-family: monospace; color: #000; line-height: 1.2;
     }
-    .struk-box {
-        background-color: #fff;
-        padding: 20px;
-        border: 1px dashed #000;
-        font-family: monospace;
-        color: #000;
-    }
+    @media print { .no-print { display: none; } }
     </style>
     """, unsafe_allow_html=True)
 
-# JUDUL VERSI KECIL (HEMAT LAYAR)
-st.markdown('<div class="header-mini"><h2>🏪 KASIR JAYA DIGITAL</h2><p>Sistem Kasir v2.1</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-mini"><h2>🏪 KASIR JAYA DIGITAL</h2></div>', unsafe_allow_html=True)
 
 # 4. NAVIGASI
-with st.sidebar:
-    menu = st.radio("MENU:", ["🛒 Kasir", "📦 Produk", "📊 Laporan"])
+menu = st.sidebar.radio("MENU:", ["🛒 Kasir", "📦 Produk", "📊 Laporan"])
 
-# --- HALAMAN 1: KASIR ---
 if menu == "🛒 Kasir":
     col1, col2 = st.columns([1.5, 1])
     
     with col1:
-        with st.expander("✨ Pilih Produk", expanded=True):
+        with st.expander("✨ Transaksi", expanded=True):
             daftar = ["--- Pilih ---"] + list(st.session_state.master_barang.keys())
             pilihan = st.selectbox("Produk:", daftar)
             qty = st.number_input("Qty:", min_value=1, value=1)
@@ -69,65 +52,63 @@ if menu == "🛒 Kasir":
                 stok_skrg = st.session_state.master_barang[pilihan][1]
                 total_tagihan = harga_satuan * qty
                 
-                st.write(f"Harga: **Rp {harga_satuan:,.0f}** | Stok: **{stok_skrg}**")
-                st.write(f"### Tagihan: Rp {total_tagihan:,.0f}")
+                st.write(f"### Total: Rp {total_tagihan:,.0f}")
                 
                 st.divider()
-                # PEMBAYARAN
-                c_u1, c_u2 = st.columns(2)
-                with c_u1:
-                    uang_pas = st.button(f"Uang Pas")
-                    bayar_manual = st.number_input("Bayar Manual (Rp):", min_value=0, step=500)
-                with c_u2:
-                    pecahan = st.selectbox("Pecahan:", [0, 10000, 20000, 50000, 100000])
+                st.write("💰 **Pembayaran**")
                 
-                jml_bayar = total_tagihan if uang_pas else (bayar_manual if bayar_manual > 0 else pecahan)
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("💵 UANG PAS"):
+                        st.session_state.jml_bayar = total_tagihan
+                    pecahan = st.selectbox("Pilih Pecahan:", [0, 10000, 20000, 50000, 100000])
+                    if pecahan > 0: st.session_state.jml_bayar = pecahan
+                
+                with c2:
+                    bayar_manual = st.number_input("Ketik Manual:", min_value=0, step=500)
+                    if bayar_manual > 0: st.session_state.jml_bayar = bayar_manual
 
-                if jml_bayar >= total_tagihan and jml_bayar > 0:
-                    kembali = jml_bayar - total_tagihan
-                    st.markdown(f'<div class="bayar-box">Kembalian: <b>Rp {kembali:,.0f}</b></div>', unsafe_allow_html=True)
+                # Tampilkan angka pembayaran saat ini
+                st.write(f"Diterima: **Rp {st.session_state.jml_bayar:,.0f}**")
+
+                if st.session_state.jml_bayar >= total_tagihan and st.session_state.jml_bayar > 0:
+                    kembali = st.session_state.jml_bayar - total_tagihan
+                    st.success(f"Kembalian: Rp {kembali:,.0f}")
                     
-                    if st.button("✅ PROSES & CETAK STRUK", use_container_width=True):
+                    if st.button("✅ PROSES & TAMPILKAN STRUK", use_container_width=True):
                         if qty <= stok_skrg:
                             st.session_state.master_barang[pilihan][1] -= qty
                             new_tr = pd.DataFrame({'Tipe':['Pemasukan'], 'Kategori':[pilihan], 'Jumlah':[total_tagihan], 'Tanggal':[datetime.today().date()]})
                             st.session_state.data = pd.concat([st.session_state.data, new_tr], ignore_index=True)
                             
-                            # TAMPILAN STRUK
-                            st.divider()
-                            st.subheader("📄 STRUK BELANJA")
+                            # AREA STRUK
                             st.markdown(f"""
-                            <div class="struk-box">
+                            <div class="struk-box" id="struk">
                                 <center><b>KASIR JAYA DIGITAL</b><br>{datetime.now().strftime('%d/%m/%Y %H:%M')}</center>
                                 <hr>
-                                {pilihan} x {qty} : Rp {total_tagihan:,.0f}<br>
+                                {pilihan}<br>{qty} x {harga_satuan:,.0f} = {total_tagihan:,.0f}<br>
                                 <hr>
-                                <b>TOTAL    : Rp {total_tagihan:,.0f}</b><br>
-                                BAYAR    : Rp {jml_bayar:,.0f}<br>
-                                KEMBALI  : Rp {kembali:,.0f}<br>
-                                <hr>
-                                <center>Terima Kasih!</center>
+                                <b>TOTAL: Rp {total_tagihan:,.0f}</b><br>
+                                BAYAR: Rp {st.session_state.jml_bayar:,.0f}<br>
+                                KEMBALI: Rp {kembali:,.0f}<br>
+                                <hr><center>Terima Kasih</center>
                             </div>
                             """, unsafe_allow_html=True)
-                            st.balloons()
+                            
+                            st.info("💡 **Tips Cetak:** Tekan lama pada struk di atas untuk 'Download Gambar' atau gunakan fitur 'Share' di browser untuk kirim ke WA/Printer Bluetooth.")
+                            st.session_state.jml_bayar = 0 # Reset setelah sukses
                         else:
-                            st.error("Stok Kurang!")
-                elif jml_bayar > 0:
-                    st.warning("Uang kurang!")
+                            st.error("Stok habis!")
 
     with col2:
-        with st.expander("✍️ Lainnya"):
-            t_m = st.selectbox("Tipe:", ["Pengeluaran", "Pemasukan"])
-            k_m = st.text_input("Ket:")
-            j_m = st.number_input("Nominal:", min_value=0)
-            if st.button("Simpan"):
-                if k_m and j_m > 0:
-                    new_tr = pd.DataFrame({'Tipe':[t_m], 'Kategori':[k_m], 'Jumlah':[j_m], 'Tanggal':[datetime.today().date()]})
-                    st.session_state.data = pd.concat([st.session_state.data, new_tr], ignore_index=True)
-                    st.success("Ok!")
+        with st.expander("✍️ Lain-lain"):
+            if st.button("🔄 Reset Form"):
+                st.session_state.jml_bayar = 0
+                st.rerun()
 
-# --- HALAMAN PRODUK & LAPORAN TETAP SAMA (Efisien) ---
+# --- HALAMAN PRODUK & LAPORAN ---
 elif menu == "📦 Produk":
+    st.subheader("Manajemen Produk")
     t1, t2 = st.tabs(["➕ Tambah", "🔧 Stok"])
     with t1:
         with st.form("add"):
@@ -143,8 +124,8 @@ elif menu == "📦 Produk":
             up = st.number_input("Tambah/Kurang Stok:", value=0)
             if st.button("Update"):
                 st.session_state.master_barang[p][1] += up
-                st.success("Stok Update!")
-            if st.button("🗑️ Hapus Produk"):
+                st.success("Selesai!")
+            if st.button("🗑️ Hapus"):
                 del st.session_state.master_barang[p]
                 st.rerun()
 
@@ -152,5 +133,5 @@ else:
     st.subheader("📊 Laporan")
     in_s = st.session_state.data[st.session_state.data['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     out_s = st.session_state.data[st.session_state.data['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    st.columns(3)[0].metric("Saldo", f"Rp {in_s - out_s:,.0f}")
+    st.metric("Saldo Kas", f"Rp {in_s - out_s:,.0f}")
     st.dataframe(st.session_state.data.sort_values(by='Tanggal', ascending=False), use_container_width=True)
