@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import requests
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="WK AHAS SMP YABAKII 1", layout="wide", page_icon="🏪")
+st.set_page_config(page_title="Kasir Jaya Cloud", layout="wide", page_icon="🏪")
 
-# 2. DATABASE BARANG
+# 2. DATABASE BARANG (Memory Sementara untuk Stok)
 if 'master_barang' not in st.session_state:
     st.session_state.master_barang = {
         "Kopi Espresso": [15000, 50],
@@ -13,125 +14,113 @@ if 'master_barang' not in st.session_state:
         "Air Mineral": [5000, 100]
     }
 
-if 'data' not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=['Tipe', 'Kategori', 'Jumlah', 'Tanggal'])
-
-# State untuk menampung jumlah bayar agar tombol Uang Pas bekerja
+# State untuk hitung bayar
 if 'jml_bayar' not in st.session_state:
     st.session_state.jml_bayar = 0
 
-# 3. GAYA DESAIN
+# 3. FUNGSI KIRIM KE GOOGLE SHEETS
+def simpan_ke_google(tipe, kategori, jumlah, tanggal):
+    # Ini adalah link formResponse milikmu
+    url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse"
+    
+    # Ini adalah ID kolom (entry) hasil bedah form kamu
+    # Jika data tidak masuk, kemungkinan ID entry ini perlu disesuaikan lagi
+    payload = {
+        "entry.1444153920": tipe,     # Kolom Tipe
+        "entry.2065873155": kategori, # Kolom Katagori
+        "entry.143715201": jumlah,    # Kolom Jumlah
+        "entry.1098693740": tanggal   # Kolom tanggal
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+        return response.status_code == 200
+    except:
+        return False
+
+# 4. TAMPILAN HEADER RINGKAS
 st.markdown("""
     <style>
-    .header-mini { padding: 10px; background: #1e3c72; color: white; border-radius: 8px; margin-bottom: 15px; }
-    .header-mini h2 { margin: 0; font-size: 20px; }
-    .struk-box { 
-        background-color: #fff; padding: 15px; border: 1px dashed #000; 
-        font-family: monospace; color: #000; line-height: 1.2;
-    }
-    @media print { .no-print { display: none; } }
+    .header-mini { padding: 10px; background: #1e3c72; color: white; border-radius: 8px; margin-bottom: 15px; text-align: center;}
+    .struk-box { background: white; padding: 15px; border: 1px dashed black; font-family: monospace; color: black; }
     </style>
+    <div class="header-mini"><h2>🏪 KASIR JAYA DIGITAL</h2></div>
     """, unsafe_allow_html=True)
 
-st.markdown('<div class="header-mini"><h2>🏪 WK AHAS SMP YABAKII</h2></div>', unsafe_allow_html=True)
-
-# 4. NAVIGASI
-menu = st.sidebar.radio("MENU:", ["🛒 Kasir", "📦 Produk", "📊 Laporan"])
+# 5. MENU UTAMA
+menu = st.sidebar.radio("MENU", ["🛒 Kasir", "📦 Stok Barang", "📊 Laporan"])
 
 if menu == "🛒 Kasir":
     col1, col2 = st.columns([1.5, 1])
     
     with col1:
-        with st.expander("✨ Transaksi", expanded=True):
+        with st.expander("📝 Transaksi Baru", expanded=True):
             daftar = ["--- Pilih ---"] + list(st.session_state.master_barang.keys())
             pilihan = st.selectbox("Produk:", daftar)
             qty = st.number_input("Qty:", min_value=1, value=1)
             
             if pilihan != "--- Pilih ---":
-                harga_satuan = st.session_state.master_barang[pilihan][0]
-                stok_skrg = st.session_state.master_barang[pilihan][1]
-                total_tagihan = harga_satuan * qty
+                harga_sat = st.session_state.master_barang[pilihan][0]
+                stok_ada = st.session_state.master_barang[pilihan][1]
+                total_tagihan = harga_sat * qty
                 
                 st.write(f"### Total: Rp {total_tagihan:,.0f}")
-                
                 st.divider()
-                st.write("💰 **Pembayaran**")
                 
+                # Fitur Pembayaran
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("💵 UANG PAS"):
-                        st.session_state.jml_bayar = total_tagihan
-                    pecahan = st.selectbox("Pilih Pecahan:", [0, 10000, 20000, 50000, 100000])
+                    if st.button("💵 UANG PAS"): st.session_state.jml_bayar = total_tagihan
+                    pecahan = st.selectbox("Pilih Pecahan:", [0, 20000, 50000, 100000])
                     if pecahan > 0: st.session_state.jml_bayar = pecahan
-                
                 with c2:
-                    bayar_manual = st.number_input("Ketik Manual:", min_value=0, step=500)
-                    if bayar_manual > 0: st.session_state.jml_bayar = bayar_manual
-
-                # Tampilkan angka pembayaran saat ini
+                    manual = st.number_input("Input Manual:", min_value=0, step=500)
+                    if manual > 0: st.session_state.jml_bayar = manual
+                
                 st.write(f"Diterima: **Rp {st.session_state.jml_bayar:,.0f}**")
-
-                if st.session_state.jml_bayar >= total_tagihan and st.session_state.jml_bayar > 0:
+                
+                if st.session_state.jml_bayar >= total_tagihan:
                     kembali = st.session_state.jml_bayar - total_tagihan
-                    st.success(f"Kembalian: Rp {kembali:,.0f}")
+                    st.info(f"Kembalian: Rp {kembali:,.0f}")
                     
-                    if st.button("✅ PROSES & TAMPILKAN STRUK", use_container_width=True):
-                        if qty <= stok_skrg:
-                            st.session_state.master_barang[pilihan][1] -= qty
-                            new_tr = pd.DataFrame({'Tipe':['Pemasukan'], 'Kategori':[pilihan], 'Jumlah':[total_tagihan], 'Tanggal':[datetime.today().date()]})
-                            st.session_state.data = pd.concat([st.session_state.data, new_tr], ignore_index=True)
+                    if st.button("✅ SELESAIKAN & SIMPAN CLOUD", use_container_width=True):
+                        if qty <= stok_ada:
+                            tgl_skrg = datetime.today().strftime('%Y-%m-%d')
+                            # KIRIM KE GOOGLE SHEETS
+                            sukses = simpan_ke_google("Pemasukan", pilihan, total_tagihan, tgl_skrg)
                             
-                            # AREA STRUK
-                            st.markdown(f"""
-                            <div class="struk-box" id="struk">
-                                <center><b>WK AHAS SMP YABAKII</b><br>{datetime.now().strftime('%d/%m/%Y %H:%M')}</center>
-                                <hr>
-                                {pilihan}<br>{qty} x {harga_satuan:,.0f} = {total_tagihan:,.0f}<br>
-                                <hr>
-                                <b>TOTAL: Rp {total_tagihan:,.0f}</b><br>
-                                BAYAR: Rp {st.session_state.jml_bayar:,.0f}<br>
-                                KEMBALI: Rp {kembali:,.0f}<br>
-                                <hr><center>Terima Kasih</center>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            st.info("💡 **Tips Cetak:** Tekan lama pada struk di atas untuk 'Download Gambar' atau gunakan fitur 'Share' di browser untuk kirim ke WA/Printer Bluetooth.")
-                            st.session_state.jml_bayar = 0 # Reset setelah sukses
+                            if sukses:
+                                st.session_state.master_barang[pilihan][1] -= qty
+                                st.success("✅ Berhasil Simpan ke Google Sheets!")
+                                st.balloons()
+                                # Cetak Struk
+                                st.markdown(f"""
+                                <div class="struk-box">
+                                    <center><b>KASIR JAYA DIGITAL</b><br>{tgl_skrg}</center><hr>
+                                    {pilihan}<br>{qty} x {harga_sat:,.0f} = {total_tagihan:,.0f}<hr>
+                                    TOTAL   : Rp {total_tagihan:,.0f}<br>
+                                    BAYAR   : Rp {st.session_state.jml_bayar:,.0f}<br>
+                                    KEMBALI : Rp {kembali:,.0f}<hr>
+                                    <center>Terima Kasih</center>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                st.session_state.jml_bayar = 0
+                            else:
+                                st.error("❌ Gagal terhubung ke Cloud. Periksa internet!")
                         else:
-                            st.error("Stok habis!")
+                            st.error("Stok tidak cukup!")
 
     with col2:
-        with st.expander("✍️ Lain-lain"):
-            if st.button("🔄 Reset Form"):
-                st.session_state.jml_bayar = 0
-                st.rerun()
+        if st.button("🔄 Reset Form"):
+            st.session_state.jml_bayar = 0
+            st.rerun()
 
-# --- HALAMAN PRODUK & LAPORAN ---
-elif menu == "📦 Produk":
-    st.subheader("Manajemen Produk")
-    t1, t2 = st.tabs(["➕ Tambah", "🔧 Stok"])
-    with t1:
-        with st.form("add"):
-            n = st.text_input("Nama:")
-            h = st.number_input("Harga:", min_value=0)
-            s = st.number_input("Stok:", min_value=0)
-            if st.form_submit_button("Simpan"):
-                st.session_state.master_barang[n] = [h, s]
-                st.rerun()
-    with t2:
-        if st.session_state.master_barang:
-            p = st.selectbox("Pilih Produk:", list(st.session_state.master_barang.keys()))
-            up = st.number_input("Tambah/Kurang Stok:", value=0)
-            if st.button("Update"):
-                st.session_state.master_barang[p][1] += up
-                st.success("Selesai!")
-            if st.button("🗑️ Hapus"):
-                del st.session_state.master_barang[p]
-                st.rerun()
+elif menu == "📦 Stok Barang":
+    st.subheader("Manajemen Stok")
+    for b, d in st.session_state.master_barang.items():
+        st.write(f"**{b}** - Stok: {d[1]} | Harga: Rp {d[0]:,.0f}")
 
 else:
     st.subheader("📊 Laporan")
-    in_s = st.session_state.data[st.session_state.data['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    out_s = st.session_state.data[st.session_state.data['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    st.metric("Saldo Kas", f"Rp {in_s - out_s:,.0f}")
-    st.dataframe(st.session_state.data.sort_values(by='Tanggal', ascending=False), use_container_width=True)
+    st.write("Silakan cek file Google Sheets kamu untuk melihat riwayat lengkap secara permanen.")
+    st.link_button("📂 Buka Google Sheets", "https://docs.google.com/spreadsheets/d/1X_Ww-o7n9p3g9Wb8fU6E7W-Y4F9p8G7Y-U1B2C3D4E5/edit")
