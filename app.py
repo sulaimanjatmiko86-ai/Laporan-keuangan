@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="Kasir Jaya Cloud", layout="wide", page_icon="🏪")
+st.set_page_config(page_title="wk ahas", layout="wide", page_icon="🏪")
 
 # 2. DATABASE BARANG (Memory Sementara untuk Stok)
 if 'master_barang' not in st.session_state:
@@ -20,7 +20,7 @@ if 'jml_bayar' not in st.session_state:
 
 # 3. FUNGSI KIRIM KE GOOGLE SHEETS (DENGAN ID ENTRY ASLI)
 def simpan_ke_google(tipe, kategori, jumlah, tanggal):
-    url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse"
+    url = "https://forms.gle/y7xmJZQkyuCekRdr9"
     
     # ID Entry ini sudah disesuaikan dengan Form kamu
     payload = {
