@@ -8,45 +8,36 @@ import plotly.express as px
 URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 st.set_page_config(page_title="Kasir Jaya", layout="centered")
 
-# 2. CSS SAKTI (AUTO-SCALE UNTUK SEMUA JENIS HP)
+# 2. CSS SAKTI (STOP SINGKAT ANGKA & FIX LAYOUT)
 st.markdown("""
     <style>
-    /* Gunakan lebar maksimal layar */
     .block-container { padding: 0.5rem !important; max-width: 100% !important; }
     
-    /* Judul Mini */
-    .mini-head { font-size: 12px; text-align: center; color: #999; margin-bottom: 5px; }
-
-    /* FIX: Angka Tagihan Auto-Resize (Biar Gak Kepotong di HP Kecil) */
-    [data-testid="stMetricValue"] { 
-        font-size: calc(14px + 1vw) !important; /* Huruf otomatis mengecil sesuai layar */
-        white-space: nowrap !important; 
-        font-weight: bold; 
-        color: #007bff;
+    /* GAYA BARU UNTUK TAGIHAN (Ganti st.metric) */
+    .wadah-tagihan {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: right;
+        border-left: 5px solid #007bff;
     }
-    [data-testid="stMetricLabel"] { font-size: 12px !important; }
+    .label-tagihan { font-size: 12px; color: #555; margin-bottom: -5px; }
+    .angka-tagihan { 
+        font-size: 20px; 
+        font-weight: bold; 
+        color: #007bff; 
+        white-space: nowrap !important; /* Paksa satu baris */
+    }
 
-    /* GRID TOMBOL ANTI-KEPOTONG */
-    div[data-testid="stHorizontalBlock"] {
+    /* GRID TOMBOL TETAP 3 KOLOM */
+    [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
-        gap: 4px !important;
+        gap: 5px !important;
     }
-    div[data-testid="column"] { 
-        flex: 1 !important; 
-        min-width: 0px !important; 
-    }
+    [data-testid="column"] { flex: 1 !important; min-width: 0px !important; }
     
-    /* Tombol Ramping */
-    button { 
-        width: 100% !important; 
-        height: 40px !important; 
-        font-size: 11px !important; /* Perkecil tulisan di tombol */
-        padding: 0px !important;
-    }
-
-    /* Tabel Riwayat Ramping */
-    .stDataFrame td, .stDataFrame th { font-size: 11px !important; padding: 2px !important; }
+    button { height: 42px !important; font-size: 12px !important; padding: 0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -63,31 +54,44 @@ def get_data():
         return df
     except: return pd.DataFrame()
 
-st.markdown("<div class='mini-head'>POS JAYA UNIVERSAL v9</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:12px; text-align:center; color:#999;'>POS JAYA FIX v10</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
 with tab1:
     pilih = st.selectbox("Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
     
-    cq, ct = st.columns([1, 1.2]) # Beri ruang lebih besar untuk angka tagihan
+    cq, ct = st.columns([1, 1.5])
     qty = cq.number_input("Qty", min_value=1, value=1)
     harga = st.session_state.master[pilih][0]
     total_t = harga * qty
-    ct.metric("Tagihan", f"Rp {total_t:,.0f}")
-
-    # TOMBOL JEJER 3
-    for row in [[("PAS", total_t), ("5rb", 5000), ("10rb", 10000)], 
-                [("20rb", 20000), ("50rb", 50000), ("100rb", 100000)]]:
-        cols = st.columns(3)
-        for i, (label, val) in enumerate(row):
-            if cols[i].button(label): st.session_state.b = val
     
-    bayar = st.number_input("Bayar", value=st.session_state.b, label_visibility="collapsed")
+    # GANTI st.metric DENGAN HTML BIAR TIDAK KEPOTONG/DISINGKAT
+    ct.markdown(f"""
+        <div class="wadah-tagihan">
+            <div class="label-tagihan">Total Tagihan</div>
+            <div class="angka-tagihan">Rp {total_t:,.0f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.write("💰 **Bayar:**")
+    # Tombol Uang Baris 1
+    c1, c2, c3 = st.columns(3)
+    if c1.button("PAS"): st.session_state.b = total_t
+    if c2.button("5rb"): st.session_state.b = 5000
+    if c3.button("10rb"): st.session_state.b = 10000
+    
+    # Tombol Uang Baris 2
+    c4, c5, c6 = st.columns(3)
+    if c4.button("20rb"): st.session_state.b = 20000
+    if c5.button("50rb"): st.session_state.b = 50000
+    if c6.button("100rb"): st.session_state.b = 100000
+    
+    bayar = st.number_input("Nominal", value=st.session_state.b, label_visibility="collapsed")
     
     if bayar >= total_t:
-        st.success(f"Kembali: {bayar-total_t:,.0f}")
-        if st.button("✅ SIMPAN TRANSAKSI", use_container_width=True):
+        st.success(f"Kembali: Rp {bayar-total_t:,.0f}")
+        if st.button("✅ SELESAIKAN", use_container_width=True):
             payload = {
                 "entry.1005808381": "Pemasukan", "entry.544255428": pilih,
                 "entry.1418739506": str(total_t), "entry.1637268017": datetime.today().strftime('%Y-%m-%d')
@@ -96,28 +100,27 @@ with tab1:
             st.session_state.master[pilih][1] -= qty
             st.session_state.b = 0
             st.rerun()
-    
+
+    # REKAP HARI INI
     st.divider()
-    
-    # REKAP HARI INI (DIBUAT LEBIH RAPI)
     df_all = get_data()
     if not df_all.empty:
         df_today = df_all[df_all['Tanggal'] == datetime.today().date()]
         if not df_today.empty:
-            rekap = df_today.groupby('Produk').agg(Laku=('Produk', 'count'), Total=('Total', 'sum')).reset_index()
-            st.write("📊 **Hari Ini:**")
+            rekap = df_today.groupby('Produk').agg(Laku=('Produk','count'), Total=('Total','sum')).reset_index()
+            st.write("📊 **Rekap Hari Ini:**")
             st.dataframe(rekap, use_container_width=True, hide_index=True)
-            st.info(f"Duit: Rp {rekap['Total'].sum():,.0f}")
+            st.info(f"Total Duit: Rp {rekap['Total'].sum():,.0f}")
 
+# TAB STOK & INFO TETAP SAMA (SUDAH BAGUS)
 with tab2:
-    st.write("### Edit Barang")
+    st.write("### Stok Barang")
     df_m = pd.DataFrame.from_dict(st.session_state.master, orient='index', columns=['Harga', 'Stok'])
     edit_df = st.data_editor(df_m, use_container_width=True)
-    if st.button("Simpan Data"):
+    if st.button("Update"):
         for i in edit_df.index:
             st.session_state.master[i] = [edit_df.at[i, 'Harga'], edit_df.at[i, 'Stok']]
         st.rerun()
-
     with st.expander("+ Produk Baru"):
         n_n = st.text_input("Nama"); n_h = st.number_input("Harga", 0); n_s = st.number_input("Stok", 0)
         if st.button("Simpan"):
@@ -129,6 +132,5 @@ with tab3:
         df['Bulan'] = pd.to_datetime(df['Tanggal']).dt.strftime('%b %Y')
         sel_bln = st.selectbox("Bulan", df['Bulan'].unique())
         df_f = df[df['Bulan'] == sel_bln]
-        st.metric("Total Omzet", f"Rp {df_f['Total'].sum():,.0f}")
+        st.write(f"### Omzet: Rp {df_f['Total'].sum():,.0f}")
         st.plotly_chart(px.pie(df_f, values='Total', names='Produk', hole=0.5), use_container_width=True)
-        st.plotly_chart(px.bar(df_f.groupby('Produk')['Total'].sum().reset_index(), x='Produk', y='Total'), use_container_width=True)
