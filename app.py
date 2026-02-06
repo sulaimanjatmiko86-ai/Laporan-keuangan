@@ -13,11 +13,7 @@ st.markdown("""
     <style>
     .block-container { padding: 1rem 0.5rem !important; max-width: 100% !important; }
     .mini-head { font-size: 14px; font-weight: bold; text-align: center; color: #888; margin-bottom: 5px; }
-    
-    /* Angka Tagihan Utuh */
     [data-testid="stMetricValue"] { font-size: 22px !important; white-space: nowrap !important; font-weight: bold; color: #007bff; }
-    
-    /* Grid Tombol 3 Kolom */
     div[data-testid="stHorizontalBlock"] {
         display: grid !important;
         grid-template-columns: 1fr 1fr 1fr !important;
@@ -25,8 +21,6 @@ st.markdown("""
         width: 100% !important;
     }
     div[data-testid="column"] { width: 100% !important; min-width: 0px !important; flex: none !important; }
-    
-    /* Styling Tombol & Tabel */
     button { width: 100% !important; height: 42px !important; border-radius: 8px !important; }
     .stDataFrame { border: 1px solid #eee; border-radius: 10px; }
     </style>
@@ -41,14 +35,12 @@ def get_data():
         df = pd.read_csv(URL_CSV)
         df.columns = ['Waktu', 'Tipe', 'Produk', 'Total', 'Tanggal']
         df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0).astype(int)
-        df['Tanggal'] = pd.to_datetime(df['Tanggal'], errors='coerce')
-        df = df.dropna(subset=['Tanggal'])
-        df['Bulan'] = df['Tanggal'].dt.strftime('%b %Y')
-        return df.sort_values(by='Waktu', ascending=False) # Data terbaru di atas
+        df['Tanggal'] = pd.to_datetime(df['Tanggal'], errors='coerce').dt.date
+        return df
     except: return pd.DataFrame()
 
 # --- HEADER ---
-st.markdown("<div class='mini-head'>POS JAYA SMART v7</div>", unsafe_allow_html=True)
+st.markdown("<div class='mini-head'>POS JAYA SMART v8</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
@@ -61,7 +53,7 @@ with tab1:
     total_t = harga * qty
     ct.metric("Tagihan", f"Rp {total_t:,.0f}")
 
-    # TOMBOL UANG JEJER 3
+    # TOMBOL UANG
     c1, c2, c3 = st.columns(3)
     with c1: 
         if st.button("PAS"): st.session_state.b = total_t
@@ -93,12 +85,29 @@ with tab1:
             st.rerun()
     
     st.divider()
-    # RIWAYAT TRANSAKSI TERAKHIR
-    st.write("📝 **Riwayat Hari Ini (Cloud):**")
-    df_raw = get_data()
-    if not df_raw.empty:
-        # Tampilkan 5 transaksi terakhir saja agar tidak penuh
-        st.dataframe(df_raw[['Produk', 'Total']].head(5), use_container_width=True)
+    
+    # --- RINGKASAN PENJUALAN HARI INI ---
+    st.write("📈 **Total Terjual Hari Ini:**")
+    df_all = get_data()
+    if not df_all.empty:
+        hari_ini = datetime.today().date()
+        df_today = df_all[df_all['Tanggal'] == hari_ini]
+        
+        if not df_today.empty:
+            # Hitung total per produk
+            rekap = df_today.groupby('Produk').agg(
+                Terjual=('Produk', 'count'),
+                Total_Rp=('Total', 'sum')
+            ).reset_index()
+            
+            # Tampilkan tabel rekap
+            st.dataframe(rekap, use_container_width=True, hide_index=True)
+            
+            # Total Uang Masuk Hari Ini
+            total_duit = rekap['Total_Rp'].sum()
+            st.info(f"💰 Total Uang Masuk: **Rp {total_duit:,.0f}**")
+        else:
+            st.write("Belum ada transaksi hari ini.")
 
 with tab2:
     st.write("### 📦 Kelola Barang")
@@ -117,21 +126,21 @@ with tab2:
             if n_n: st.session_state.master[n_n] = [n_h, n_s]; st.rerun()
 
 with tab3:
-    st.write("### 📊 Laporan Penjualan")
+    st.write("### 📊 Laporan Bulanan")
     df = get_data()
     if not df.empty:
+        # Tambahkan kolom bulan untuk filter
+        df['Bulan'] = pd.to_datetime(df['Tanggal']).dt.strftime('%b %Y')
         sel_bln = st.selectbox("Periode", df['Bulan'].unique())
         df_f = df[df['Bulan'] == sel_bln].copy()
         
         st.metric("Total Omzet", f"Rp {df_f['Total'].sum():,.0f}")
         
-        # 1. DIAGRAM BULAT (PROPORSI)
         st.write("🍩 **Proporsi Produk Terlaris**")
         fig_pie = px.pie(df_f, values='Total', names='Produk', hole=0.5,
                          color_discrete_sequence=px.colors.qualitative.Bold)
         st.plotly_chart(fig_pie, use_container_width=True)
         
-        # 2. DIAGRAM BATANG (PERFORMA)
         st.write("📊 **Grafik Penjualan (Rp)**")
         summary = df_f.groupby('Produk')['Total'].sum().reset_index()
         fig_bar = px.bar(summary, x='Produk', y='Total', color='Produk', text_auto='.2s')
