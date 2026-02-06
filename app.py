@@ -2,114 +2,126 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import requests
+import plotly.express as px
 
-# 1. KONFIGURASI TAMPILAN
-st.set_page_config(page_title="Kasir Jaya", layout="centered")
+# 1. LINK DATABASE (SUDAH SAYA KONVERSI KE CSV)
+# Menggunakan ID Sheets kamu: 1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo
+URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 
-# CSS Agar rapi di HP & Laptop
+# 2. SETTING HALAMAN
+st.set_page_config(page_title="Kasir Jaya Paten", layout="centered")
+
 st.markdown("""
     <style>
-    /* Mengecilkan tombol agar pas di layar HP */
-    div.stButton > button {
-        width: 100%;
-        height: 45px !important;
-        font-size: 14px !important;
-        border-radius: 10px;
-        margin-bottom: 5px;
-        background-color: #f8f9fa;
-        color: #333;
-        border: 1px solid #ddd;
-    }
-    div.stButton > button:hover { border-color: #007bff; color: #007bff; }
+    div.stButton > button { width: 100%; height: 45px; border-radius: 10px; font-weight: bold; background-color: #f8f9fa; }
+    .stMetric { background: #ffffff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. DATABASE (Tambah hitungan Terjual)
-if 'master_barang' not in st.session_state:
-    # Format: [Harga, Stok, Terjual]
-    st.session_state.master_barang = {
-        "Kopi Espresso": [15000, 50, 0],
-        "Roti Bakar": [20000, 30, 0],
-        "Air Mineral": [5000, 100, 0]
-    }
-
-if 'jml_bayar' not in st.session_state:
-    st.session_state.jml_bayar = 0
-
-# 3. FUNGSI SIMPAN KE CLOUD
-def simpan_ke_cloud(kategori, jumlah):
-    url = "https://docs.google.com/forms/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse"
-    tgl_skrg = datetime.today().strftime('%Y-%m-%d')
-    payload = {
-        "entry.1005808381": "Pemasukan",
-        "entry.544255428": kategori,
-        "entry.1418739506": str(jumlah),
-        "entry.1637268017": tgl_skrg
-    }
+# 3. FUNGSI AMBIL DATA DARI CLOUD
+def ambil_data_sheets():
     try:
-        requests.post(url, data=payload, timeout=5)
-        return True
+        df = pd.read_csv(URL_CSV)
+        # Nama kolom sesuai Form: Timestamp, Tipe, Katagori, Jumlah, tanggal
+        df.columns = ['Waktu', 'Tipe', 'Produk', 'Total', 'Tanggal']
+        df['Tanggal'] = pd.to_datetime(df['Tanggal'])
+        df['Bulan'] = df['Tanggal'].dt.strftime('%B %Y')
+        return df
     except:
-        return False
+        return pd.DataFrame()
 
-# 4. TAMPILAN UTAMA
-st.markdown("<h3 style='text-align: center;'>🏪 KASIR JAYA DIGITAL</h3>", unsafe_allow_html=True)
+# 4. DATABASE BARANG (Master)
+if 'master_stok' not in st.session_state:
+    st.session_state.master_stok = {
+        "Kopi Espresso": [15000, 100],
+        "Roti Bakar": [20000, 50],
+        "Air Mineral": [5000, 200]
+    }
 
-menu = st.sidebar.radio("MENU", ["🛒 Kasir", "📦 Stok & Terjual"])
+if 'bayar_input' not in st.session_state:
+    st.session_state.bayar_input = 0
 
-if menu == "🛒 Kasir":
-    pilihan = st.selectbox("Pilih Produk:", list(st.session_state.master_barang.keys()))
-    qty = st.number_input("Jumlah:", min_value=1, value=1)
+# --- NAVIGASI ---
+menu = st.sidebar.radio("NAVIGASI", ["🛒 Kasir Utama", "📊 Infografis Bulanan", "📦 Stok & Produk"])
+
+# --- HALAMAN 1: KASIR ---
+if menu == "🛒 Kasir Utama":
+    st.markdown("<h2 style='text-align: center;'>🏪 KASIR JAYA</h2>", unsafe_allow_html=True)
     
-    total = st.session_state.master_barang[pilihan][0] * qty
-    st.markdown(f"### Total: Rp {total:,.0f}")
+    prod = st.selectbox("Pilih Produk:", list(st.session_state.master_stok.keys()))
+    qty = st.number_input("Jumlah Beli:", min_value=1, value=1)
+    
+    harga_satuan = st.session_state.master_stok[prod][0]
+    total_tagihan = harga_satuan * qty
+    
+    st.markdown(f"### Total Tagihan: Rp {total_tagihan:,.0f}")
     st.divider()
 
-    # --- TOMBOL UANG (Rapi di HP: 3 Kolom x 2 Baris) ---
-    st.write("💰 **Pilih Pembayaran:**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("PAS"): st.session_state.jml_bayar = total
-        if st.button("20rb"): st.session_state.jml_bayar = 20000
-    with col2:
-        if st.button("5rb"): st.session_state.jml_bayar = 5000
-        if st.button("50rb"): st.session_state.jml_bayar = 50000
-    with col3:
-        if st.button("10rb"): st.session_state.jml_bayar = 10000
-        if st.button("100rb"): st.session_state.jml_bayar = 100000
+    st.write("💰 **Pilih Uang Pembayaran:**")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("PAS"): st.session_state.bayar_input = total_tagihan
+        if st.button("20rb"): st.session_state.bayar_input = 20000
+    with c2:
+        if st.button("5rb"): st.session_state.bayar_input = 5000
+        if st.button("50rb"): st.session_state.bayar_input = 50000
+    with c3:
+        if st.button("10rb"): st.session_state.bayar_input = 10000
+        if st.button("100rb"): st.session_state.bayar_input = 100000
 
-    input_manual = st.number_input("Ketik Manual (Rp):", min_value=0, step=500)
-    if input_manual > 0: st.session_state.jml_bayar = input_manual
-
-    st.write(f"Diterima: **Rp {st.session_state.jml_bayar:,.0f}**")
-
-    if st.session_state.jml_bayar >= total and st.session_state.jml_bayar > 0:
-        kembali = st.session_state.jml_bayar - total
-        st.warning(f"Kembalian: Rp {kembali:,.0f}")
-        
-        if st.button("✅ SELESAIKAN & SIMPAN", use_container_width=True):
-            if simpan_ke_cloud(pilihan, total):
-                # Update Stok & Terjual
-                st.session_state.master_barang[pilihan][1] -= qty # Kurangi Stok
-                st.session_state.master_barang[pilihan][2] += qty # Tambah Terjual
-                
-                st.success("BERHASIL DISIMPAN!")
-                st.balloons()
-                st.session_state.jml_bayar = 0 
-                st.rerun()
-
-# --- MENU STOK & TERJUAL ---
-else:
-    st.subheader("📦 Data Stok & Penjualan")
-    # Tampilkan tabel yang lebih informatif
-    df = pd.DataFrame.from_dict(
-        st.session_state.master_barang, 
-        orient='index', 
-        columns=['Harga', 'Sisa Stok', 'Total Terjual']
-    )
-    st.table(df)
+    nominal = st.number_input("Atau Ketik Manual:", value=st.session_state.bayar_input)
     
-    if st.button("Reset Terjual"):
-        for k in st.session_state.master_barang:
-            st.session_state.master_barang[k][2] = 0
-        st.rerun()
+    if nominal >= total_tagihan:
+        kembalian = nominal - total_tagihan
+        st.success(f"Kembalian: Rp {kembalian:,.0f}")
+        
+        if st.button("✅ SELESAIKAN & KIRIM KE SHEETS", use_container_width=True):
+            # Kirim data ke Google Form
+            url_form = "https://docs.google.com/forms/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse"
+            payload = {
+                "entry.1005808381": "Pemasukan",
+                "entry.544255428": prod,
+                "entry.1418739506": str(total_tagihan),
+                "entry.1637268017": datetime.today().strftime('%Y-%m-%d')
+            }
+            requests.post(url_form, data=payload)
+            
+            # Update stok lokal
+            st.session_state.master_stok[prod][1] -= qty
+            st.balloons()
+            st.session_state.bayar_input = 0
+            st.rerun()
+
+# --- HALAMAN 2: INFOGRAFIS ---
+elif menu == "📊 Infografis Bulanan":
+    st.header("📊 Analisis Penjualan Bulanan")
+    data = ambil_data_sheets()
+    
+    if not data.empty:
+        # Pilihan Bulan
+        bln = st.selectbox("Pilih Periode:", data['Bulan'].unique())
+        df_filtered = data[data['Bulan'] == bln]
+        
+        # Grafik Omzet per Produk
+        st.subheader(f"Omzet Produk - {bln}")
+        fig1 = px.bar(df_filtered.groupby('Produk')['Total'].sum().reset_index(), 
+                     x='Produk', y='Total', color='Total', 
+                     text_auto='.2s', color_continuous_scale='Viridis')
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # Ringkasan Total
+        total_omzet = df_filtered['Total'].sum()
+        st.metric("Total Pemasukan Bulan Ini", f"Rp {total_omzet:,.0f}")
+    else:
+        st.error("Data tidak terbaca. Pastikan Sheets sudah ada isinya!")
+
+# --- HALAMAN 3: STOK ---
+else:
+    st.header("📦 Kelola Produk & Stok")
+    df_stok = pd.DataFrame.from_dict(st.session_state.master_stok, orient='index', columns=['Harga', 'Sisa Stok'])
+    edited = st.data_editor(df_stok, use_container_width=True)
+    
+    if st.button("💾 Update Data Stok"):
+        for item in edited.index:
+            st.session_state.master_stok[item] = [edited.at[item, 'Harga'], edited.at[item, 'Sisa Stok']]
+        st.success("Stok diperbarui!")
