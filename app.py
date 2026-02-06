@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 
 # 1. KONFIGURASI & TEMA
-st.set_page_config(page_title="Kasir Jaya", layout="wide", page_icon="🏪")
+st.set_page_config(page_title="WK AHAS DIGITAL", layout="wide", page_icon="🏪")
 
 # 2. DATABASE BARANG
 if 'master_barang' not in st.session_state:
@@ -38,7 +38,7 @@ st.markdown("<h2 style='text-align: center;'>🏪 WK AHAS DIGITAL</h2>", unsafe_
 
 menu = st.sidebar.radio("MENU", ["🛒 Kasir Utama", "📦 Stok Barang", "📊 Laporan"])
 
-if menu == "🛒 Kasir Utama":
+if menu == "🛒 Kasir utama":
     with st.container():
         st.subheader("📝 Transaksi")
         pilihan = st.selectbox("Pilih Produk:", list(st.session_state.master_barang.keys()))
