@@ -8,39 +8,43 @@ import plotly.express as px
 URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 st.set_page_config(page_title="Kasir Jaya", layout="centered")
 
+# 2. CSS "HARGA MATI" (ANTI BESAR, ANTI KE BAWAH)
 st.markdown("""
     <style>
-    /* Hilangkan spasi kosong di pinggir */
+    /* Paksa container paling luar jadi ramping */
     .block-container { padding: 0.5rem !important; max-width: 100% !important; }
     
-    /* Box Tagihan - Angka Tidak Akan Terpotong */
+    /* Box Tagihan - Ramping & Angka Utuh */
     .tagihan-box {
-        background: #1e2130; padding: 12px; border-radius: 12px;
-        border-left: 5px solid #007bff; margin-bottom: 10px;
+        background: #1e2130; padding: 10px; border-radius: 10px;
+        border-left: 4px solid #007bff; margin-bottom: 8px;
         display: flex; justify-content: space-between; align-items: center;
     }
-    .tagihan-angka { color: #007bff; font-size: 20px; font-weight: bold; }
+    .tagihan-angka { color: #007bff; font-size: 18px; font-weight: bold; white-space: nowrap; }
 
-  
+    /* PAKSA JEJER 3 (TOMBOL KECIL & RAPI) */
+    div[data-testid="column"] {
+        flex: 1 !important;
+        min-width: 30% !important; /* Kunci lebar agar tetap 3 kolom */
+        max-width: 33% !important;
+    }
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
-        flex-direction: row !important; /* Paksa horizontal */
-        flex-wrap: nowrap !important; /* Jangan biarkan turun ke bawah */
-        gap: 5px !important;
-    }
-    div[data-testid="column"] {
-        flex: 1 1 0% !important; /* Bagi 3 rata */
-        min-width: 0px !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; /* Larang keras pindah baris ke bawah */
+        gap: 4px !important;
     }
     
-    /* Tombol agar pas di kotak */
+    /* Ukuran Huruf & Tombol Diperkecil Agar Tidak "Meledak" */
     button { 
-        width: 100% !important; 
-        padding: 0px !important; 
-        height: 45px !important; 
-        font-size: 13px !important;
-        border-radius: 8px !important;
+        height: 38px !important; 
+        font-size: 12px !important; 
+        padding: 0 !important; 
+        border-radius: 6px !important;
     }
+    
+    /* Input Angka Diperkecil */
+    .stNumberInput input { font-size: 14px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -53,20 +57,19 @@ def get_data():
     try:
         df = pd.read_csv(URL_CSV)
         df.columns = ['Waktu', 'Tipe', 'Produk', 'Total', 'Tanggal']
-        # Pastikan data Jumlah dibersihkan dari huruf (seperti 'G' di foto kamu)
         df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0).astype(int)
         df['Tanggal'] = pd.to_datetime(df['Tanggal'], errors='coerce').dt.date
         return df
     except: return pd.DataFrame()
 
-st.markdown("<div style='text-align:center; color:#555; font-size:10px;'>POS JAYA v13 - FIX GRID</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#666; font-size:10px;'>POS JAYA v14 - ULTRA COMPACT</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
 with tab1:
     pilih = st.selectbox("Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
     
-    # Qty dan Tagihan
+    # Qty dan Tagihan berjejer rapat
     c_qty, c_tag = st.columns([0.4, 0.6])
     qty = c_qty.number_input("Qty", min_value=1, value=1)
     harga = st.session_state.master[pilih][0]
@@ -79,34 +82,29 @@ with tab1:
         </div>
     """, unsafe_allow_html=True)
 
-    st.write("💰 **Uang Bayar:**")
-    
-    # BARIS 1: PAS, 5rb, 10rb 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("PAS"): st.session_state.b = total_t
-    with col2:
-        if st.button("5rb"): st.session_state.b = 5000
-    with col3:
-        if st.button("10rb"): st.session_state.b = 10000
-        
-    # BARIS 2: 20rb, 50rb, 100rb 
-    col4, col5, col6 = st.columns(3)
-    with col4:
-        if st.button("20rb"): st.session_state.b = 20000
-    with col5:
-        if st.button("50rb"): st.session_state.b = 50000
-    with col6:
-        if st.button("100rb"): st.session_state.b = 100000
-    
-    if st.button("❌ Hapus / Ketik Manual", use_container_width=True):
-        st.session_state.b = None
+    # TOMBOL UANG - DIKUNCI MATI JEJER 3
+    for baris in [["PAS", "5rb", "10rb"], ["20rb", "50rb", "100rb"]]:
+        cols = st.columns(3)
+        for i, label in enumerate(baris):
+            if cols[i].button(label, key=f"btn_{label}"):
+                if label == "PAS": st.session_state.b = total_t
+                elif label == "5rb": st.session_state.b = 5000
+                elif label == "10rb": st.session_state.b = 10000
+                elif label == "20rb": st.session_state.b = 20000
+                elif label == "50rb": st.session_state.b = 50000
+                elif label == "100rb": st.session_state.b = 100000
 
-    bayar = st.number_input("Nominal Bayar", value=st.session_state.b, placeholder="Ketik di sini...", step=500)
+    # Input Bayar Otomatis Hilang 0-nya
+    bayar = st.number_input("Nominal Bayar", value=st.session_state.b, placeholder="Ketik nominal...", step=500)
+    
+    # Tombol Hapus Cepat
+    if st.button("❌ Hapus Nominal", use_container_width=True):
+        st.session_state.b = None
+        st.rerun()
     
     if bayar and bayar >= total_t:
         st.success(f"Kembali: Rp {bayar-total_t:,.0f}")
-        if st.button("✅ SELESAIKAN", use_container_width=True):
+        if st.button("✅ SIMPAN TRANSAKSI", use_container_width=True):
             payload = {
                 "entry.1005808381": "Pemasukan", "entry.544255428": pilih,
                 "entry.1418739506": str(total_t), "entry.1637268017": datetime.today().strftime('%Y-%m-%d')
@@ -116,7 +114,7 @@ with tab1:
             st.session_state.b = None
             st.rerun()
 
-    # Rekap Singkat
+    # Rekap Singkat Bawah
     df_all = get_data()
     if not df_all.empty:
         df_today = df_all[df_all['Tanggal'] == datetime.today().date()]
