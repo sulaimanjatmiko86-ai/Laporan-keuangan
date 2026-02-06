@@ -4,54 +4,50 @@ from datetime import datetime
 import requests
 import plotly.express as px
 
-# 1. CONFIG & DATABASE
+# 1. DATABASE & CONFIG
 URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 st.set_page_config(page_title="Kasir", layout="centered")
 
-# 2. CSS FINAL (PAS DI LAYAR HP & JEJER 3)
+# 2. CSS SAKTI (HEADLINE MINI & FIX TOMBOL KEPOTONG)
 st.markdown("""
     <style>
-    /* Gunakan seluruh lebar layar */
-    .block-container { 
-        padding-top: 0.5rem !important; 
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
-        max-width: 100% !important; 
-    }
+    /* Hilangkan padding berlebih */
+    .block-container { padding: 1rem 0.5rem !important; max-width: 100% !important; }
     
     /* Headline Super Kecil */
-    .mini-head { font-size: 14px; font-weight: bold; text-align: center; color: #888; margin-bottom: 5px; }
+    .mini-head { font-size: 14px; font-weight: bold; text-align: center; color: #888; margin-bottom: 10px; }
 
-    /* PAKSA JEJER 3 TANPA SISA LAYAR */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+    /* PAKSA JEJER 3 MENGGUNAKAN GRID CSS */
+    div[data-testid="stHorizontalBlock"] {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important; /* Bagi 3 rata */
+        gap: 5px !important;
         width: 100% !important;
-        gap: 4px !important;
     }
-    [data-testid="column"] {
-        flex: 1 !important;
+    div[data-testid="column"] {
+        width: 100% !important;
         min-width: 0px !important;
+        flex: none !important;
     }
     
-    /* Tombol Full Lebar & Pas */
+    /* Tombol Pas & Rapi */
     button { 
         width: 100% !important;
         height: 45px !important; 
-        font-size: 13px !important; 
-        padding: 0px !important;
+        font-size: 13px !important;
         margin: 0px !important;
+        border-radius: 8px !important;
     }
 
-    /* Hilangkan spasi antar elemen */
-    .stNumberInput, .stSelectbox { margin-bottom: -15px !important; }
+    /* Rapikan input agar tidak terlalu renggang */
+    .stNumberInput, .stSelectbox { margin-bottom: -10px !important; }
     </style>
     """, unsafe_allow_html=True)
 
+# Sinkronisasi state uang bayar
+if 'b' not in st.session_state: st.session_state.b = 0
 if 'master' not in st.session_state:
     st.session_state.master = {"Kopi": [15000, 100], "Roti": [20000, 50]}
-if 'b' not in st.session_state: st.session_state.b = 0
 
 def get_data():
     try:
@@ -63,24 +59,24 @@ def get_data():
         return df.dropna(subset=['Tanggal'])
     except: return pd.DataFrame()
 
-# --- HEADLINE MINI ---
-st.markdown("<div class='mini-head'>POS JAYA v4</div>", unsafe_allow_html=True)
+# --- HEADER ---
+st.markdown("<div class='mini-head'>POS JAYA v5 (FIXED)</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
 with tab1:
-    pilih = st.selectbox("Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
+    pilih = st.selectbox("Pilih Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
     
-    # Baris Atas: Qty & Total Jejer 2
-    c_qty, c_tot = st.columns(2)
-    qty = c_qty.number_input("Qty", min_value=1, value=1)
+    # Qty & Total Jejer 2
+    cq, ct = st.columns(2)
+    qty = cq.number_input("Qty", min_value=1, value=1)
     harga = st.session_state.master[pilih][0]
     total = harga * qty
-    c_tot.metric("Total Tagihan", f"{total:,.0f}")
+    ct.metric("Tagihan", f"{total:,.0f}")
 
     st.write("💰 **Uang Bayar:**")
     
-    # BARIS 1: PAS, 5rb, 10rb (Pasti Jejer 3 & Pas Layar)
+    # BARIS 1 (PAS, 5rb, 10rb)
     c1, c2, c3 = st.columns(3)
     with c1: 
         if st.button("PAS"): st.session_state.b = total
@@ -89,7 +85,7 @@ with tab1:
     with c3: 
         if st.button("10rb"): st.session_state.b = 10000
     
-    # BARIS 2: 20rb, 50rb, 100rb (Pasti Jejer 3 & Pas Layar)
+    # BARIS 2 (20rb, 50rb, 100rb)
     c4, c5, c6 = st.columns(3)
     with c4: 
         if st.button("20rb"): st.session_state.b = 20000
@@ -102,7 +98,7 @@ with tab1:
     
     if bayar >= total:
         st.info(f"Kembali: {bayar-total:,.0f}")
-        if st.button("✅ SELESAIKAN", use_container_width=True):
+        if st.button("✅ SELESAIKAN TRANSAKSI", use_container_width=True):
             payload = {
                 "entry.1005808381": "Pemasukan", "entry.544255428": pilih,
                 "entry.1418739506": str(total), "entry.1637268017": datetime.today().strftime('%Y-%m-%d')
