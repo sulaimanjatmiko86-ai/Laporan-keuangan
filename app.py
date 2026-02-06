@@ -8,51 +8,33 @@ import plotly.express as px
 URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 st.set_page_config(page_title="Kasir Jaya", layout="centered")
 
-# 2. CSS & JS PAMUNGKAS (ANTI-KE BAWAH & ANTI-POTONG)
+# 2. CSS ANTI-KEBAWAH & ANTI-POTONG (TETAP DIKUNCI JEJER 3)
 st.markdown("""
     <style>
-    /* Paksa layar full tanpa margin */
     .block-container { padding: 0.5rem !important; max-width: 100% !important; }
-    
-    /* Box Tagihan yang Gak Bakal Kepotong */
     .tagihan-box {
-        background: #1e2130;
-        padding: 12px;
-        border-radius: 12px;
-        border-left: 5px solid #007bff;
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        background: #1e2130; padding: 12px; border-radius: 12px;
+        border-left: 5px solid #007bff; margin-bottom: 10px;
+        display: flex; justify-content: space-between; align-items: center;
     }
     .tagihan-label { color: #aaa; font-size: 12px; }
-    .tagihan-angka { color: #007bff; font-size: 20px; font-weight: bold; }
+    .tagihan-angka { color: #007bff; font-size: 20px; font-weight: bold; white-space: nowrap; }
 
-    /* CONTAINER TOMBOL JEJER 3 MURNI */
-    .grid-container {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        width: 100%;
-        margin-bottom: 10px;
+    /* PAKSA JEJER 3 DI SEMUA HP */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important; flex-direction: row !important;
+        gap: 5px !important; width: 100% !important;
     }
-    .grid-item {
-        background-color: #262730;
-        color: white;
-        border: 1px solid #444;
-        padding: 12px 0;
-        text-align: center;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        font-size: 14px;
-    }
-    .grid-item:active { background-color: #007bff; }
+    [data-testid="column"] { flex: 1 !important; min-width: 0px !important; }
+    button { height: 45px !important; font-size: 12px !important; border-radius: 8px !important; }
+    
+    /* Input Nominal Bayar agar lebih menonjol */
+    .stNumberInput input { font-size: 18px !important; font-weight: bold !important; color: #28a745 !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # State Management
-if 'b' not in st.session_state: st.session_state.b = 0
+if 'b' not in st.session_state: st.session_state.b = None # Set None agar 0 hilang
 if 'master' not in st.session_state:
     st.session_state.master = {"Kopi": [15000, 100], "Roti": [20000, 50], "Air": [5000, 200]}
 
@@ -65,20 +47,18 @@ def get_data():
         return df
     except: return pd.DataFrame()
 
-st.markdown("<div style='font-size:10px; text-align:center; color:#555;'>POS JAYA ULTIMATE v11</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:10px; text-align:center; color:#555;'>POS JAYA v12 - AUTO CLEAR</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
 with tab1:
     pilih = st.selectbox("Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
     
-    # Bagian Input Qty & Tagihan
     cq, ct = st.columns([0.4, 0.6])
     qty = cq.number_input("Qty", min_value=1, value=1)
     harga = st.session_state.master[pilih][0]
     total_t = harga * qty
     
-    # Tagihan Custom HTML
     st.markdown(f"""
         <div class="tagihan-box">
             <span class="tagihan-label">Total Tagihan</span>
@@ -86,30 +66,27 @@ with tab1:
         </div>
     """, unsafe_allow_html=True)
 
-    st.write("💰 **Uang Bayar (Jejer 3):**")
+    st.write("💰 **Klik Tombol Uang:**")
     
-    # TEKNIK BARU: Tombol Jejer 3 Pakai Button Bawaan tapi CSS Diperketat
-    # Kita tidak pakai columns(3) lagi, tapi pakai container CSS Grid
-    st.markdown('<div class="grid-container">', unsafe_allow_html=True)
+    # Baris 1
     c1, c2, c3 = st.columns(3)
-    with c1: 
-        if st.button("PAS", key="btn_pas", use_container_width=True): st.session_state.b = total_t
-    with c2: 
-        if st.button("5rb", key="btn_5", use_container_width=True): st.session_state.b = 5000
-    with c3: 
-        if st.button("10rb", key="btn_10", use_container_width=True): st.session_state.b = 10000
+    if c1.button("PAS"): st.session_state.b = total_t
+    if c2.button("5rb"): st.session_state.b = 5000
+    if c3.button("10rb"): st.session_state.b = 10000
     
+    # Baris 2
     c4, c5, c6 = st.columns(3)
-    with c4: 
-        if st.button("20rb", key="btn_20", use_container_width=True): st.session_state.b = 20000
-    with c5: 
-        if st.button("50rb", key="btn_50", use_container_width=True): st.session_state.b = 50000
-    with c6: 
-        if st.button("100rb", key="btn_100", use_container_width=True): st.session_state.b = 100000
+    if c4.button("20rb"): st.session_state.b = 20000
+    if c5.button("50rb"): st.session_state.b = 50000
+    if c6.button("100rb"): st.session_state.b = 100000
     
-    bayar = st.number_input("Input Bayar", value=st.session_state.b, label_visibility="collapsed")
+    # Tombol Reset Manual
+    if st.button("Hapus Nominal / Ketik Manual"): st.session_state.b = None
+
+    # INPUT BAYAR: Sekarang pakai value=st.session_state.b yang bisa None
+    bayar = st.number_input("Nominal Bayar", value=st.session_state.b, placeholder="Ketik nominal di sini...", step=500)
     
-    if bayar >= total_t:
+    if bayar and bayar >= total_t:
         st.success(f"Kembali: Rp {bayar-total_t:,.0f}")
         if st.button("✅ SELESAIKAN TRANSAKSI", use_container_width=True):
             payload = {
@@ -118,7 +95,7 @@ with tab1:
             }
             requests.post("https://docs.google.com/forms/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse", data=payload)
             st.session_state.master[pilih][1] -= qty
-            st.session_state.b = 0
+            st.session_state.b = None # Reset ke kosong lagi
             st.rerun()
 
     # REKAP PENJUALAN
@@ -142,7 +119,7 @@ with tab2:
         st.rerun()
 
 with tab3:
-    st.write("### 📊 Info")
+    st.write("### 📊 Laporan")
     df = get_data()
     if not df.empty:
         df['Bulan'] = pd.to_datetime(df['Tanggal']).dt.strftime('%b %Y')
