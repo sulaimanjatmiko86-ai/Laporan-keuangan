@@ -8,46 +8,40 @@ import plotly.express as px
 URL_CSV = "https://docs.google.com/spreadsheets/d/1P64EoKz-DZgwGyOMtgPbN_vLdax4IUxluWHLi8cmnwo/export?format=csv"
 st.set_page_config(page_title="Kasir Jaya", layout="centered")
 
-# 2. CSS "SUPER MEPEET" (HAPUS SEMUA JARAK GAK PENTING)
+# 2. CSS SAKTI (STOP SINGKAT ANGKA & FIX LAYOUT)
 st.markdown("""
     <style>
     .block-container { padding: 0.5rem !important; max-width: 100% !important; }
     
-    /* Box Tagihan Biru Rapi */
-    .tagihan-box {
-        background: #1e2130; padding: 10px; border-radius: 8px;
-        border-left: 5px solid #007bff; margin-bottom: 8px;
-        display: flex; justify-content: space-between; align-items: center;
+    /* GAYA BARU UNTUK TAGIHAN (Ganti st.metric) */
+    .wadah-tagihan {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: right;
+        border-left: 5px solid #007bff;
     }
-    .tagihan-angka { color: #007bff; font-size: 20px; font-weight: bold; }
+    .label-tagihan { font-size: 12px; color: #555; margin-bottom: -5px; }
+    .angka-tagihan { 
+        font-size: 20px; 
+        font-weight: bold; 
+        color: #007bff; 
+        white-space: nowrap !important; /* Paksa satu baris */
+    }
 
-    /* PAKSA JEJER 3 & MEPEET (ANTI JARAK JAUH) */
-    div[data-testid="column"] {
-        flex: 1 1 0% !important;
-        min-width: 0px !important;
-        padding: 0px 1px !important; /* Jarak cuma 1 pixel biar rapat banget */
+    /* GRID TOMBOL TETAP 3 KOLOM */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 5px !important;
     }
-    div[data-testid="stHorizontalBlock"] {
-        gap: 2px !important; /* Jarak antar kolom cuma 2 pixel */
-    }
+    [data-testid="column"] { flex: 1 !important; min-width: 0px !important; }
     
-    /* Tombol - Rapat & Kecil */
-    .stButton button {
-        width: 100% !important;
-        height: 42px !important;
-        font-size: 13px !important;
-        font-weight: bold !important;
-        border-radius: 6px !important;
-        margin: 0px !important;
-        padding: 0px !important;
-    }
-    
-    /* Input Angka Diperkecil Marginnya */
-    .stNumberInput { margin-top: -15px; }
+    button { height: 42px !important; font-size: 12px !important; padding: 0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-if 'b' not in st.session_state: st.session_state.b = None
+if 'b' not in st.session_state: st.session_state.b = 0
 if 'master' not in st.session_state:
     st.session_state.master = {"Kopi": [15000, 100], "Roti": [20000, 50], "Air": [5000, 200]}
 
@@ -60,72 +54,83 @@ def get_data():
         return df
     except: return pd.DataFrame()
 
-st.markdown("<h5 style='text-align:center; color:#888; margin-top:-20px;'>POS JAYA SUPER COMPACT</h5>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:12px; text-align:center; color:#999;'>POS JAYA FIX v10</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["🛒 KASIR", "📦 STOK", "📊 INFO"])
 
 with tab1:
     pilih = st.selectbox("Menu", list(st.session_state.master.keys()), label_visibility="collapsed")
     
-    c_qty, c_t = st.columns([0.4, 0.6])
-    qty = c_qty.number_input("Qty", min_value=1, value=1)
+    cq, ct = st.columns([1, 1.5])
+    qty = cq.number_input("Qty", min_value=1, value=1)
     harga = st.session_state.master[pilih][0]
     total_t = harga * qty
     
-    st.markdown(f"""
-        <div class="tagihan-box">
-            <span style="color:#aaa; font-size:10px;">Tagihan</span>
-            <span class="tagihan-angka">Rp {total_t:,.0f}</span>
+    # GANTI st.metric DENGAN HTML BIAR TIDAK KEPOTONG/DISINGKAT
+    ct.markdown(f"""
+        <div class="wadah-tagihan">
+            <div class="label-tagihan">Total Tagihan</div>
+            <div class="angka-tagihan">Rp {total_t:,.0f}</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # BARIS 1: 5rb | 10rb | 20rb (SANGAT RAPAT)
+    st.write("💰 **Bayar:**")
+    # Tombol Uang Baris 1
     c1, c2, c3 = st.columns(3)
-    if c1.button("5rb"): st.session_state.b = 5000
-    if c2.button("10rb"): st.session_state.b = 10000
-    if c3.button("20rb"): st.session_state.b = 20000
+    if c1.button("PAS"): st.session_state.b = total_t
+    if c2.button("5rb"): st.session_state.b = 5000
+    if c3.button("10rb"): st.session_state.b = 10000
     
-    # BARIS 2: 50rb | 100rb | PAS (SANGAT RAPAT)
+    # Tombol Uang Baris 2
     c4, c5, c6 = st.columns(3)
-    if c4.button("50rb"): st.session_state.b = 50000
-    if c5.button("100rb"): st.session_state.b = 100000
-    if c6.button("PAS"): st.session_state.b = total_t
-
-    st.write("") # Spasi kecil
-    bayar = st.number_input("Nominal Bayar", value=st.session_state.b, placeholder="Ketik manual...", step=500)
+    if c4.button("20rb"): st.session_state.b = 20000
+    if c5.button("50rb"): st.session_state.b = 50000
+    if c6.button("100rb"): st.session_state.b = 100000
     
-    # Tombol Simpan & Hapus
-    c_del, c_save = st.columns([0.35, 0.65])
-    if c_del.button("❌ Batal"):
-        st.session_state.b = None
-        st.rerun()
-    if bayar and bayar >= total_t:
-        if c_save.button("✅ SIMPAN & CETAK"):
+    bayar = st.number_input("Nominal", value=st.session_state.b, label_visibility="collapsed")
+    
+    if bayar >= total_t:
+        st.success(f"Kembali: Rp {bayar-total_t:,.0f}")
+        if st.button("✅ SELESAIKAN", use_container_width=True):
             payload = {
                 "entry.1005808381": "Pemasukan", "entry.544255428": pilih,
                 "entry.1418739506": str(total_t), "entry.1637268017": datetime.today().strftime('%Y-%m-%d')
             }
             requests.post("https://docs.google.com/forms/d/e/1FAIpQLSc8wjCuUX01A4MRBLuGx1UaAIAhdQ6G9yPsnhskJ1fKtEFzgA/formResponse", data=payload)
             st.session_state.master[pilih][1] -= qty
-            st.session_state.b = None
+            st.session_state.b = 0
             st.rerun()
 
-    # Riwayat Ringkas
+    # REKAP HARI INI
+    st.divider()
     df_all = get_data()
     if not df_all.empty:
         df_today = df_all[df_all['Tanggal'] == datetime.today().date()]
         if not df_today.empty:
-            st.divider()
             rekap = df_today.groupby('Produk').agg(Laku=('Produk','count'), Total=('Total','sum')).reset_index()
+            st.write("📊 **Rekap Hari Ini:**")
             st.dataframe(rekap, use_container_width=True, hide_index=True)
+            st.info(f"Total Duit: Rp {rekap['Total'].sum():,.0f}")
 
+# TAB STOK & INFO TETAP SAMA (SUDAH BAGUS)
 with tab2:
     st.write("### Stok Barang")
     df_m = pd.DataFrame.from_dict(st.session_state.master, orient='index', columns=['Harga', 'Stok'])
-    st.data_editor(df_m, use_container_width=True)
+    edit_df = st.data_editor(df_m, use_container_width=True)
+    if st.button("Update"):
+        for i in edit_df.index:
+            st.session_state.master[i] = [edit_df.at[i, 'Harga'], edit_df.at[i, 'Stok']]
+        st.rerun()
+    with st.expander("+ Produk Baru"):
+        n_n = st.text_input("Nama"); n_h = st.number_input("Harga", 0); n_s = st.number_input("Stok", 0)
+        if st.button("Simpan"):
+            if n_n: st.session_state.master[n_n] = [n_h, n_s]; st.rerun()
 
 with tab3:
-    st.write("### Info Penjualan")
     df = get_data()
     if not df.empty:
-        st.plotly_chart(px.pie(df, values='Total', names='Produk', hole=0.4), use_container_width=True)
+        df['Bulan'] = pd.to_datetime(df['Tanggal']).dt.strftime('%b %Y')
+        sel_bln = st.selectbox("Bulan", df['Bulan'].unique())
+        df_f = df[df['Bulan'] == sel_bln]
+        st.write(f"### Omzet: Rp {df_f['Total'].sum():,.0f}")
+        st.plotly_chart(px.pie(df_f, values='Total', names='Produk', hole=0.5), use_container_width=True)
